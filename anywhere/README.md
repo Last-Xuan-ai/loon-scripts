@@ -1,4 +1,16 @@
-# Anywhere 分流规则
+# Anywhere 规则
+
+## 字母圈 MITM 播放修复
+
+在 **MITM → Subscribe Rule Set（订阅规则集）** 添加：
+
+```text
+https://raw.githubusercontent.com/Last-Xuan-ai/loon-scripts/main/anywhere/zmq.amrs
+```
+
+开启 MITM 与规则集，并安装、信任 Anywhere 的根证书。`.amrs` 已内嵌脚本，无需另行添加 JS。导入时应看到 **1 条响应脚本规则、22 个域名后缀**。
+
+具体安装步骤、域名限制及更新方法见 [字母圈使用说明](zmq-使用说明.md)。
 
 ## Stripchat / GoondVR
 

@@ -1,6 +1,18 @@
 # Loon Scripts
 
-Loon 脚本与 Anywhere 分流规则仓库。字母圈播放修复要求 **Loon 3.5.1（983）或更新版**。
+Loon 脚本与 Anywhere MITM／分流规则仓库。Loon 版字母圈播放修复要求 **Loon 3.5.1（983）或更新版**；Anywhere 版使用原生 `.amrs` 规则集。
+
+## Anywhere：字母圈播放修复
+
+在 Anywhere 的 **MITM → Subscribe Rule Set（订阅规则集）** 中添加：
+
+```text
+https://raw.githubusercontent.com/Last-Xuan-ai/loon-scripts/main/anywhere/zmq.amrs
+```
+
+开启 MITM 和该规则集，并安装、信任 Anywhere 的根证书。规则集已经内嵌 JavaScript，无需单独导入 `.js`。这是 MITM 响应改写，请在 MITM 页面添加。
+
+Anywhere 的 hostname 只支持明确的域名后缀，不支持 Loon 的通配符。目前覆盖发布页提供的域名和已知旧域名；未来换到新的编号域名，需要更新订阅内容。详细说明见 [Anywhere 播放修复](anywhere/zmq-使用说明.md)。
 
 ## Anywhere：Stripchat 分流
 
@@ -45,3 +57,4 @@ https://raw.githubusercontent.com/Last-Xuan-ai/loon-scripts/main/zmq.lpx
 - [Script v2](https://nsloon.app/docs/Script/script_v2)
 - [Rewrite v2](https://nsloon.app/docs/Rewrite/rewrite_v2)
 - [MitM](https://nsloon.app/docs/MitM/)
+- [Anywhere MITM](https://github.com/NodePassProject/Anywhere/blob/main/Documentations/MITM.md)
