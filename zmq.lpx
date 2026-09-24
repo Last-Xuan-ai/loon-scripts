@@ -1,0 +1,15 @@
+#!name = 字母圈播放修复
+#!desc = 覆盖 zimuquan、zmqurl、zmqsite 编号域名及子域名；兼容电脑和手机播放页。
+#!homepage = https://www.zmqurl3.top
+#!loon_version = 3.5.1(983)
+#!tag = 视频,播放修复
+#!type = normal
+
+# 公开仓库订阅：插件会下载同仓库中的 zmq.js。
+# 如需离线使用，可将脚本路径改为已导入的本地文件 zmq.js。
+# 同一个播放页仅启用这一份修复，停用原来的字母圈脚本。
+[Script]
+response if ${url} ~= /^https?:\/\/(?:[a-z0-9-]+\.)*(?:zimuquan|zmqurl|zmqsite)\d*\.(?:top|com|uk)(?::\d+)?\/(?:index\.php\/)?vod\/play\/id\/\d+\/sid\/\d+\/nid\/\d+\.html(?:\?[^#]*)?(?:#.*)?$/i && ${request.method} == "GET" && ${response.status} == 200 then script("https://raw.githubusercontent.com/Last-Xuan-ai/loon-scripts/main/zmq.js") with tag="字母圈播放修复", timeout=20, requires_body=true
+
+[MitM]
+hostname = zimuquan*.top, *.zimuquan*.top, zimuquan*.com, *.zimuquan*.com, zimuquan*.uk, *.zimuquan*.uk, zmqurl*.top, *.zmqurl*.top, zmqurl*.com, *.zmqurl*.com, zmqurl*.uk, *.zmqurl*.uk, zmqsite*.top, *.zmqsite*.top, zmqsite*.com, *.zmqsite*.com, zmqsite*.uk, *.zmqsite*.uk
