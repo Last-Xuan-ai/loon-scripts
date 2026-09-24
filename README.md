@@ -1,6 +1,16 @@
 # Loon Scripts
 
-Loon 脚本仓库。当前包含字母圈播放修复，要求 **Loon 3.5.1（983）或更新版**。
+Loon 脚本与 Anywhere 分流规则仓库。字母圈播放修复要求 **Loon 3.5.1（983）或更新版**。
+
+## Anywhere：Stripchat 分流
+
+覆盖 Stripchat 主站、API、播放器和视频 CDN，适用于浏览器与 GoondVR。将下面的地址添加到 Anywhere 的 **Routing → Subscribe Rule Set**，导入后在 **Route To** 中指定节点，并使用规则模式：
+
+```text
+https://raw.githubusercontent.com/Last-Xuan-ai/loon-scripts/main/anywhere/stripchat.arrs
+```
+
+详细说明见 [Anywhere 分流规则](anywhere/README.md)。
 
 ## 直接订阅
 

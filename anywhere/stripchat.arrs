@@ -1,0 +1,11 @@
+name = Stripchat - GoondVR
+
+# Website and API
+2, stripchat.com
+
+# Player and video CDN
+2, doppiocdn.com
+2, doppiocdn.net
+
+# Static assets and previews
+2, strpst.com
