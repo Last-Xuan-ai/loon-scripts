@@ -2,6 +2,14 @@
 
 Loon 脚本与 Anywhere MITM／分流规则仓库。Loon 版字母圈播放修复要求 **Loon 3.5.1（983）或更新版**；Anywhere 版使用原生 `.amrs` 规则集。
 
+## 播放修复更新：2026.09.27.1（UTC）
+
+站点将部分资源从 `vod.jpg`／同目录 `index.m3u8` 迁移为 `videos/.../<资源ID>/poster2.jpg` 或 `cover.jpg`，播放地址改用 `/movie/auto/<资源ID>.m3u8`。本次同步修复 Loon 和 Anywhere，保留旧目录兼容及页面已有签名地址的优先级。
+
+已安装的用户：Anywhere 刷新 **MITM 规则集订阅**；Loon 更新插件和脚本缓存，然后关闭旧播放页再打开。订阅地址不变。成功改写时日志会显示版本 `2026.09.27.1`。
+
+示例已通过媒体读取验证；部分 `efv1` 资源返回 `403 No permission`，更新不保证解除源站鉴权。详情见 [更新记录](CHANGELOG.md)。
+
 ## Anywhere：字母圈播放修复
 
 在 Anywhere 的 **MITM → Subscribe Rule Set（订阅规则集）** 中添加：
@@ -50,7 +58,7 @@ https://raw.githubusercontent.com/Last-Xuan-ai/loon-scripts/main/zmq.lpx
 
 修复电脑/手机播放页面、保留页面编码和完整视频地址，优先使用 iPhone 原生 HLS。覆盖 `zimuquan`、`zmqurl`、`zmqsite` 系列在 `.top`、`.com`、`.uk` 下的编号域名和子域名。未来更换品牌或顶级域名时仍需更新规则。
 
-通过 21 项自动检查；发布页当前 21 个播放站点地址均通过规则匹配检查。示例视频实际读取到了 720p H.264 和 AAC 流。尚未在用户设备的 Loon 内实测，不能保证源站失效、鉴权变化或网络阻断的视频可播放。
+初版通过 21 项自动检查；本次扩充至 25 项 Anywhere／共享修复检查，覆盖新旧资源布局与签名地址保留。发布页当前 21 个播放站点地址均在现有规则范围内。迁移后的示例实际读取到了 720p H.264 和 AAC 流。尚未在用户设备内实测，不能保证源站失效、鉴权变化或网络阻断的视频可播放。
 
 ## 官方文档
 

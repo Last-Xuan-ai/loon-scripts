@@ -123,4 +123,47 @@ test("headers are read-only and duplicates are preserved",()=>{
   assert.equal(result.ctx.headers.length,3);
   assert.deepEqual(result.ctx.headers.slice(1),[["Set-Cookie","a=1"],["Set-Cookie","b=2"]]);
 });
+for (const filename of ["poster2.jpg","cover.jpg"]) for (const mobile of [false,true]) for (const wrapped of [false,true]) {
+  test(filename+" migrated storage: "+(mobile?"mobile":"desktop")+" "+(wrapped?"wrapped":"plain"),()=>{
+    const cover="https://media.example:8443/videos/202609/25/0123456789abcdef01234567/"+filename+"?token=x%2Fy&amp;expires=1";
+    const html=page(mobile).replace(poster,cover);
+    const input=wrapped?wrap(html):html;
+    const result=invoke(input);
+    assert(result.changed);
+    assert.equal(result.text,loon(input));
+    const output=unwrap(result.text);
+    assert(output.includes('href="https://media.example:8443/movie/auto/0123456789abcdef01234567.m3u8?token=x%2Fy&amp;expires=1"'));
+    assert(output.includes('poster="'+cover+'"'));
+    assert(output.includes("KEEP 100% 中文 😀"));
+    if(mobile) assert(output.includes('class="back"'));
+    assert(!invoke(result.ctx.body).changed);
+  });
+}
+test("migrated storage uses the current item's cover, not a recommendation",()=>{
+  const current="https://media.example/videos/202609/25/0123456789abcdef01234567/poster2.jpg";
+  const recommendation='<img data-src="https://media.example/videos/202609/25/aaaaaaaaaaaaaaaaaaaaaaaa/poster2.jpg">';
+  const result=invoke(recommendation+page().replace(poster,current));
+  assert(result.text.includes('href="https://media.example/movie/auto/0123456789abcdef01234567.m3u8"'));
+  assert(!result.text.includes('href="https://media.example/movie/auto/aaaaaaaaaaaaaaaaaaaaaaaa.m3u8"'));
+});
+test("unknown cover layouts and unrelated uploads are not guessed",()=>{
+  for(const cover of [
+    "https://media.example/poster/upload123.jpg",
+    "https://media.example/videos/202609/25/invalid-id/poster2.jpg",
+    "https://media.example/videos/202609/25/0123456789abcdef01234567/thumbnail.jpg",
+    "https://media.example/images/202609/25/0123456789abcdef01234567/cover.jpg"
+  ]) assert(!invoke(page().replace(poster,cover)).changed);
+});
+test("existing signed player URL retains its query and takes priority",()=>{
+  const signed="https://media.example/movie/auto/aaaaaaaaaaaaaaaaaaaaaaaa.m3u8?counts=5&timestamp=1234567890000&key=example%2Ftoken";
+  const cover="https://media.example/videos/202609/25/0123456789abcdef01234567/poster2.jpg";
+  const player='<div class="container"><div class="dplayer"><script>var player_aaaa='+
+    JSON.stringify({encrypt:0,url:signed,poster:cover})+';</script></div></div>'+
+    '<span class="mac_history_set" data-pic="'+cover+'"></span>';
+  const result=invoke(wrap(player));
+  assert(result.changed);
+  assert.equal(result.text,loon(wrap(player)));
+  assert(unwrap(result.text).includes('href="'+signed.replace(/&/g,"&amp;")+'"'));
+  assert(!unwrap(result.text).includes('href="https://media.example/movie/auto/0123456789abcdef01234567.m3u8'));
+});
 console.log(passed+" Anywhere checks passed");

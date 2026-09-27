@@ -1,5 +1,5 @@
 /*
- * ZMQ playback repair — 2026-09-24
+ * ZMQ playback repair — 2026-09-27 (UTC)
  * Loon response script; configure requires_body=true.
  * Only rewrites supported playback pages. Unknown layouts pass through unchanged.
  * No eval, remote API calls, URL/atob/btoa dependency in the Loon runtime.
@@ -7,6 +7,7 @@
 (function () {
   "use strict";
   var URL_GUARD = /^https?:\/\/(?:[a-z0-9-]+\.)*(?:zimuquan|zmqurl|zmqsite)\d*\.(?:top|com|uk)(?::\d+)?\/(?:index\.php\/)?vod\/play\/id\/\d+\/sid\/\d+\/nid\/\d+\.html(?:\?[^#]*)?(?:#.*)?$/i;
+  var REPAIR_VERSION = "2026.09.27.1";
   var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   var MARKER = 'id="zmq-player-repair"';
 
@@ -100,9 +101,14 @@
     return /\.(?:m3u8|mp4)(?:\?|$)/i.test(url) ? url : "";
   }
 
-  // Keep the complete origin, storage path and query string. Do not assume /video/.
+  // Keep the origin (including port) and query; only map recognized storage layouts.
   function sourceFromPoster(poster, pageUrl) {
     var url = absoluteUrl(poster, pageUrl);
+    // Migrated storage keeps HLS renditions in a generated subdirectory.
+    // The site's player uses /movie/auto/<id>.m3u8 to resolve that directory;
+    // replacing poster2.jpg with index.m3u8 in /videos/ now returns 404.
+    var migrated = /^(https?:\/\/[^/?#]+)\/videos\/\d{6}\/\d{2}\/([a-f0-9]{24})\/(?:poster2|cover)\.(?:jpe?g|png|webp)(\?[^#]*)?$/i.exec(url);
+    if (migrated) return migrated[1] + "/movie/auto/" + migrated[2] + ".m3u8" + (migrated[3] || "");
     return /\/vod\.(?:jpe?g|png|webp)(?:\?|$)/i.test(url) ?
       url.replace(/\/vod\.(?:jpe?g|png|webp)(?=\?|$)/i, "/index.m3u8") : "";
   }
@@ -263,7 +269,7 @@
 
   function playerHtml(media) {
     var source = JSON.stringify(media.source).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
-    return '<div id="zmq-player-repair" style="position:relative;width:100%;background:#000;color:#fff">' +
+    return '<div id="zmq-player-repair" data-zmq-version="' + REPAIR_VERSION + '" style="position:relative;width:100%;background:#000;color:#fff">' +
       '<video controls playsinline webkit-playsinline preload="metadata" poster="' + escapeHtml(media.poster) +
       '" style="display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000"></video>' +
       '<div style="padding:6px 10px;font-size:12px;line-height:1.5">' +
@@ -318,7 +324,7 @@
     var status = response.status === undefined ? response.statusCode : response.status;
     if (URL_GUARD.test(url) && (status === undefined || Number(status) === 200) && typeof body === "string" && body.length) {
       var updated = rewrite(body, url);
-      if (updated !== body) { result = { body: updated }; log("已替换播放区域"); }
+      if (updated !== body) { result = { body: updated }; log("已替换播放区域，版本 " + REPAIR_VERSION); }
       else log("未识别到可修复的播放区域，保留原响应");
     }
   } catch (_) {
