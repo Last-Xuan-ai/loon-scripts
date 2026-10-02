@@ -30,10 +30,10 @@ ENTRY = r'''
     if (roundTrip.length !== bytes.length) return;
     for (var b = 0; b < bytes.length; b++) if (bytes[b] !== roundTrip[b]) return;
     var updated = rewrite(body, url);
-    if (updated === body) { log("未识别到可修复的播放区域，保留原响应"); return; }
+    if (updated === body) { log("页面无需改写或未识别到播放区域，保留原响应"); return; }
     var output = Anywhere.codec.utf8.encode(updated);
     if (output.byteLength > limit) { log("改写结果超过大小限制，保留原响应"); return; }
-    log("已替换播放区域，版本 " + REPAIR_VERSION);
+    log("已处理播放页面，版本 " + REPAIR_VERSION);
     ctx.body = output;
   } catch (_) {
     // Keep the original byte array on decode/parse/encode failure.

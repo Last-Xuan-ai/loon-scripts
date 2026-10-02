@@ -124,7 +124,7 @@ test("headers are read-only and duplicates are preserved",()=>{
   assert.deepEqual(result.ctx.headers.slice(1),[["Set-Cookie","a=1"],["Set-Cookie","b=2"]]);
 });
 for (const filename of ["poster2.jpg","cover.jpg"]) for (const mobile of [false,true]) for (const wrapped of [false,true]) {
-  test(filename+" migrated storage: "+(mobile?"mobile":"desktop")+" "+(wrapped?"wrapped":"plain"),()=>{
+  test(filename+" preserves access UI without inventing a signature: "+(mobile?"mobile":"desktop")+" "+(wrapped?"wrapped":"plain"),()=>{
     const cover="https://media.example:8443/videos/202609/25/0123456789abcdef01234567/"+filename+"?token=x%2Fy&amp;expires=1";
     const html=page(mobile).replace(poster,cover);
     const input=wrapped?wrap(html):html;
@@ -132,19 +132,21 @@ for (const filename of ["poster2.jpg","cover.jpg"]) for (const mobile of [false,
     assert(result.changed);
     assert.equal(result.text,loon(input));
     const output=unwrap(result.text);
-    assert(output.includes('href="https://media.example:8443/movie/auto/0123456789abcdef01234567.m3u8?token=x%2Fy&amp;expires=1"'));
-    assert(output.includes('poster="'+cover+'"'));
+    assert(output.includes('id="zmq-player-status"'));
+    assert(!output.includes("/movie/auto/"));
+    assert(output.includes('class="'+(mobile?"show_poster":"popup")+'"'));
+    assert(output.includes('data-pic="'+cover+'"'));
     assert(output.includes("KEEP 100% 中文 😀"));
     if(mobile) assert(output.includes('class="back"'));
     assert(!invoke(result.ctx.body).changed);
   });
 }
-test("migrated storage uses the current item's cover, not a recommendation",()=>{
+test("migrated current item does not play a recommendation instead",()=>{
   const current="https://media.example/videos/202609/25/0123456789abcdef01234567/poster2.jpg";
   const recommendation='<img data-src="https://media.example/videos/202609/25/aaaaaaaaaaaaaaaaaaaaaaaa/poster2.jpg">';
   const result=invoke(recommendation+page().replace(poster,current));
-  assert(result.text.includes('href="https://media.example/movie/auto/0123456789abcdef01234567.m3u8"'));
-  assert(!result.text.includes('href="https://media.example/movie/auto/aaaaaaaaaaaaaaaaaaaaaaaa.m3u8"'));
+  assert(result.text.includes('id="zmq-player-status"'));
+  assert(!result.text.includes('/movie/auto/'));
 });
 test("unknown cover layouts and unrelated uploads are not guessed",()=>{
   for(const cover of [
@@ -165,5 +167,93 @@ test("existing signed player URL retains its query and takes priority",()=>{
   assert.equal(result.text,loon(wrap(player)));
   assert(unwrap(result.text).includes('href="'+signed.replace(/&/g,"&amp;")+'"'));
   assert(!unwrap(result.text).includes('href="https://media.example/movie/auto/0123456789abcdef01234567.m3u8'));
+});
+function oldPlayer(source, version="2026.09.27.1") {
+  return '<div class="play_video"><i class="back"></i><div id="zmq-player-repair" data-zmq-version="'+version+'">'+
+    '<video poster="https://cdn.example/videos/202609/25/0123456789abcdef01234567/poster2.jpg"></video>'+
+    '<a href="'+source.replace(/&/g,"&amp;")+'">打开视频地址</a><script>/* old player */</script></div></div>'+
+    '<div class="play_scroll">keep</div>';
+}
+test("an old unsigned generated player becomes one versioned notice",()=>{
+  const input=wrap(oldPlayer("https://cdn.example/movie/auto/0123456789abcdef01234567.m3u8"));
+  const result=invoke(input);
+  assert(result.changed);
+  assert.equal(result.text,loon(input));
+  const html=unwrap(result.text);
+  assert(html.includes('id="zmq-player-status"'));
+  assert(!html.includes('id="zmq-player-repair"'));
+  assert(!html.includes('/movie/auto/'));
+  assert(html.includes('class="back"'));
+  assert(html.includes('data-zmq-version="2026.10.03.1"'));
+  assert(!invoke(result.ctx.body).changed);
+});
+test("old signed and legacy players upgrade with their exact source",()=>{
+  for(const source of [
+    "https://cdn.example/movie/auto/0123456789abcdef01234567.m3u8?counts=5&timestamp=1791000000000&key=a%2Fb",
+    "https://cdn.example/sp/m3u8/current/index.m3u8?token=a%2Fb",
+    "https://cdn.example/video.mp4"
+  ]) {
+    const input=wrap(oldPlayer(source));
+    const result=invoke(input);
+    assert(result.changed);
+    assert.equal(result.text,loon(input));
+    const html=unwrap(result.text);
+    assert(html.includes('data-zmq-version="2026.10.03.1"'));
+    assert(html.includes('href="'+source.replace(/&/g,"&amp;")+'"'));
+    assert.equal((html.match(/id="zmq-player-repair"/g)||[]).length,1);
+    assert(html.includes('data-refresh'));
+    assert(!invoke(result.ctx.body).changed);
+  }
+});
+test("empty partial credentials on old inferred auto URLs are not usable",()=>{
+  for(const query of ["?key=","?key=abc","?timestamp=123","?timestamp=123&key="]) {
+    assert(invoke(oldPlayer("https://cdn.example/movie/auto/0123456789abcdef01234567.m3u8"+query)).text.includes('id="zmq-player-status"'));
+  }
+});
+test("title text resembling a marker cannot prevent a real rewrite",()=>{
+  assert(invoke('<title>id="zmq-player-repair"</title>'+page()).changed);
+});
+function browserPlayer() {
+  const output=invoke(page()).text;
+  const js=[...output.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].find(m=>m[1].includes("function mountPlayer"))[1];
+  const attrs={},events={},status={},button={};
+  const video={canPlayType:()=>"",addEventListener:(name,fn)=>events[name]=fn};
+  let handler,retries=0,stops=0;
+  class Hls {
+    static isSupported(){return true;}
+    static Events={ERROR:"error"};
+    static ErrorTypes={NETWORK_ERROR:"network",MEDIA_ERROR:"media"};
+    on(name,callback){handler=callback;}
+    loadSource(){}
+    attachMedia(){}
+    stopLoad(){stops++;}
+    startLoad(){retries++;}
+    recoverMediaError(){}
+    destroy(){}
+  }
+  const root={getAttribute:k=>attrs[k],setAttribute:(k,v)=>attrs[k]=v,
+    querySelector:s=>s==="video"?video:s==="button"?button:status};
+  vm.runInNewContext(js,{window:{Hls},document:{getElementById:()=>root}});
+  return {error:data=>handler(null,data),status,events,retries:()=>retries,stops:()=>stops};
+}
+for(const code of [401,403]) test("HLS "+code+" stops automatic retries and asks for a fresh page",()=>{
+  const player=browserPlayer();
+  player.error({fatal:true,type:"network",response:{code}});
+  assert.equal(player.retries(),0);
+  assert.equal(player.stops(),1);
+  assert(player.status.textContent.includes(String(code)));
+  assert(player.status.textContent.includes("刷新页面"));
+});
+test("ordinary HLS network errors retain bounded retry behavior",()=>{
+  const player=browserPlayer();
+  for(let i=0;i<3;i++)player.error({fatal:true,type:"network",response:{code:500}});
+  assert.equal(player.retries(),2);
+  assert.equal(player.stops(),0);
+});
+test("native video errors explain expired or rejected addresses",()=>{
+  const player=browserPlayer();
+  player.events.error();
+  assert(player.status.textContent.includes("过期"));
+  assert(player.status.textContent.includes("刷新页面"));
 });
 console.log(passed+" Anywhere checks passed");
